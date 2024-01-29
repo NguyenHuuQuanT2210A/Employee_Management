@@ -62,16 +62,19 @@ namespace EmployeeManagement.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("EmployeeCode,Name,Rank,DepartmentID")] Employee_Tbl employee_Tbl)
         {
+            var department = await _context.Department_Tbl
+                .Include(e => e.Employees)
+                .FirstOrDefaultAsync(d => d.Id == employee_Tbl.DepartmentID);
+            if (department != null)
+            {
+                if (department.Employees.Count < department.NumberOfPersonals)
+                {
+
 
                     try
                     {
-                        
                         _context.Add(employee_Tbl);
-
-                        
-
                         await _context.SaveChangesAsync();
-
                         return RedirectToAction(nameof(Index));
                     }
                     catch (DbUpdateException)
@@ -81,7 +84,12 @@ namespace EmployeeManagement.Controllers
                             "Try again, and if the problem persists " +
                             "see your system administrator.");
                     }
-            
+                }
+                else
+                {
+                    ModelState.AddModelError("", "Department is full. Cannot add more employees.");
+                }
+            }
             PopulateDepartmentsDropDownList(employee_Tbl.DepartmentID);
             return View(employee_Tbl);
         }
@@ -118,6 +126,7 @@ namespace EmployeeManagement.Controllers
             var employeeToUpdate = await _context.Employee_Tbl
                 .Include(p => p.Department)
                 .FirstOrDefaultAsync(p => p.Id == id);
+
             if (await TryUpdateModelAsync<Employee_Tbl>(employeeToUpdate,
                 "",
                 p => p.Name, p => p.EmployeeCode, p => p.Rank, p => p.DepartmentID))
